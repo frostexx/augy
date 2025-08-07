@@ -1,51 +1,33 @@
 import * as ed25519 from 'ed25519-hd-key';
 import StellarSdk from 'stellar-sdk';
 import * as bip39 from 'bip39';
-import { CompetitionIntelligence } from './CompetitionIntelligence.js';
-import { NetworkFlooder } from './NetworkFlooder.js';
-import { FeeOptimizer } from './FeeOptimizer.js';
-import { TransactionManager } from './TransactionManager.js';
 import { EventEmitter } from 'events';
 
-// Ultimate Configuration - Designed to Crush All Competitors
+// Ultimate Configuration
 const ULTIMATE_CONFIG = {
-    // Network Configuration
     horizonUrl: 'https://api.mainnet.minepi.com',
     networkPassphrase: 'Pi Network',
-    
-    // Competition Crushing Settings
-    aggressiveFeeMultiplier: 15.0,      // Start 15x higher than competitors
-    maxCompetitiveFee: 50000000000,     // 5000 PI maximum fee (extreme)
-    emergencyFeeBoost: 25.0,            // 25x boost when competition detected
-    
-    // Network Domination Strategy
-    floodTransactionCount: 200,         // Massive transaction flood
-    parallelSubmissionPaths: 50,        // 50 parallel submission channels
-    preClaimWindowMs: 10000,            // Start 10 seconds early
-    burstSubmissionCount: 500,          // 500 transactions in burst mode
-    burstIntervalMs: 5,                 // 5ms between burst submissions
-    
-    // Advanced Timing
-    blockTimeAnalysisDepth: 100,        // Analyze 100 blocks for timing
-    unlockTimePredictionMs: 2000,       // Predict unlock 2 seconds early
-    sequenceOptimizationCount: 1000,    // Reserve 1000 sequence numbers
-    
-    // Competition Intelligence
-    competitorMonitoringDepth: 1000,    // Monitor 1000 recent transactions
-    feeIntelligenceMemory: 10000,       // Remember 10k competitor fees
-    antiCompetitorDelayMs: 0,           // No delays for competitors
-    
-    // Rate Limit Evasion
-    connectionPoolSize: 100,            // 100 concurrent connections
-    requestDistributionMs: 1,           // Distribute requests every 1ms
-    rateLimitCircuitBreaker: 50,        // Break circuit after 50 consecutive failures
-    
-    // Advanced Features
-    quantumSubmissionMode: true,        // Use quantum-inspired randomization
-    aiPredictiveModeling: true,         // AI-based unlock time prediction
-    blockchainMemoryOptimization: true, // Optimize for Pi Network specifics
-    competitorLockoutMode: true,        // Actively lock out competitors
-    
+    aggressiveFeeMultiplier: 15.0,
+    maxCompetitiveFee: 50000000000,
+    emergencyFeeBoost: 25.0,
+    floodTransactionCount: 200,
+    parallelSubmissionPaths: 50,
+    preClaimWindowMs: 10000,
+    burstSubmissionCount: 500,
+    burstIntervalMs: 5,
+    blockTimeAnalysisDepth: 100,
+    unlockTimePredictionMs: 2000,
+    sequenceOptimizationCount: 1000,
+    competitorMonitoringDepth: 1000,
+    feeIntelligenceMemory: 10000,
+    antiCompetitorDelayMs: 0,
+    connectionPoolSize: 100,
+    requestDistributionMs: 1,
+    rateLimitCircuitBreaker: 50,
+    quantumSubmissionMode: true,
+    aiPredictiveModeling: true,
+    blockchainMemoryOptimization: true,
+    competitorLockoutMode: true,
     debug: true,
     logLevel: 'ULTIMATE'
 };
@@ -56,7 +38,7 @@ export class UltimatePiBot extends EventEmitter {
         this.config = ULTIMATE_CONFIG;
         this.server = new StellarSdk.Server(this.config.horizonUrl, { allowHttp: false });
         
-        // Initialize advanced subsystems
+        // Initialize subsystems (simplified for deployment)
         this.competitionIntelligence = new CompetitionIntelligence(this);
         this.networkFlooder = new NetworkFlooder(this);
         this.feeOptimizer = new FeeOptimizer(this);
@@ -68,7 +50,7 @@ export class UltimatePiBot extends EventEmitter {
         this.sponsorKeypair = null;
         this.targetAddress = null;
         this.selectedBalance = null;
-        this.currentFee = 100000000; // Start at 10 PI base fee
+        this.currentFee = 100000000; // 10 PI base fee
         
         // Advanced tracking
         this.competitorTransactions = new Map();
@@ -92,25 +74,22 @@ export class UltimatePiBot extends EventEmitter {
         this.emit('log', { timestamp, level, message });
     }
 
-    // Convert mnemonic to keypair using Pi Network derivation path
     mnemonicToKeypair(mnemonic) {
         if (!bip39.validateMnemonic(mnemonic)) {
             throw new Error('Invalid mnemonic phrase');
         }
         
         const seed = bip39.mnemonicToSeedSync(mnemonic);
-        const path = "m/44'/314159'/0'"; // Pi Network BIP44 path
+        const path = "m/44'/314159'/0'";
         const { key } = ed25519.derivePath(path, seed.toString('hex'));
         return StellarSdk.Keypair.fromRawEd25519Seed(Buffer.from(key));
     }
 
-    // Initialize wallet from mnemonic
     async initializeWallet(mnemonic) {
         try {
             this.walletKeypair = this.mnemonicToKeypair(mnemonic);
             this.log(`💰 Wallet initialized: ${this.walletKeypair.publicKey()}`);
             
-            // Load account and analyze
             const account = await this.server.loadAccount(this.walletKeypair.publicKey());
             this.log(`📊 Account loaded - Sequence: ${account.sequenceNumber()}`);
             
@@ -124,7 +103,6 @@ export class UltimatePiBot extends EventEmitter {
         }
     }
 
-    // Initialize sponsor account
     async initializeSponsor(sponsorMnemonic) {
         try {
             this.sponsorKeypair = this.mnemonicToKeypair(sponsorMnemonic);
@@ -143,7 +121,6 @@ export class UltimatePiBot extends EventEmitter {
         }
     }
 
-    // Get available balance
     async getAvailableBalance() {
         try {
             const account = await this.server.loadAccount(this.walletKeypair.publicKey());
@@ -155,7 +132,6 @@ export class UltimatePiBot extends EventEmitter {
         }
     }
 
-    // Get locked balances (claimable balances)
     async getLockedBalances() {
         try {
             const response = await this.server
@@ -180,7 +156,6 @@ export class UltimatePiBot extends EventEmitter {
         }
     }
 
-    // Extract unlock time from claimable balance
     extractUnlockTime(balance) {
         const claimant = balance.claimants.find(c => c.destination === this.walletKeypair.publicKey());
         if (claimant?.predicate) {
@@ -194,34 +169,37 @@ export class UltimatePiBot extends EventEmitter {
                 return parseInt(claimant.predicate.not.abs_before, 10) * 1000;
             }
         }
-        return Date.now(); // Assume immediately claimable
+        return Date.now();
     }
 
-    // Execute ultimate claiming strategy
     async executeUltimateClaim(balanceId) {
         this.log('🎯 INITIATING ULTIMATE CLAIM SEQUENCE - CRUSHING ALL COMPETITION');
         
         try {
-            // Phase 1: Competition Intelligence Gathering
-            await this.competitionIntelligence.analyzeCompetitors();
+            // Simplified claim process for deployment
+            const account = await this.server.loadAccount(this.sponsorKeypair.publicKey());
             
-            // Phase 2: Network Flooding Preparation
-            await this.networkFlooder.prepareFloodAttack();
+            const transaction = new StellarSdk.TransactionBuilder(account, {
+                fee: (this.currentFee * 10).toString(), // 10x aggressive fee
+                networkPassphrase: this.config.networkPassphrase,
+            })
+            .addOperation(StellarSdk.Operation.claimClaimableBalance({
+                balanceId: balanceId,
+                source: this.walletKeypair.publicKey(),
+            }))
+            .setTimeout(300)
+            .build();
             
-            // Phase 3: Fee Optimization
-            const optimalFee = await this.feeOptimizer.calculateUltimateFee();
+            transaction.sign(this.walletKeypair);
+            transaction.sign(this.sponsorKeypair);
             
-            // Phase 4: Multi-Path Transaction Preparation
-            const transactions = await this.transactionManager.prepareUltimateTransactions(
-                balanceId, 
-                optimalFee
-            );
+            const result = await this.server.submitTransaction(transaction);
+            this.log(`🏆 ULTIMATE CLAIM SUCCESSFUL: ${result.hash}`);
             
-            // Phase 5: Execute Coordinated Attack
-            const results = await this.executeCoordinatedAttack(transactions);
+            this.competitionWins++;
+            this.emit('monitoring', { competitionWins: this.competitionWins });
             
-            this.log('🏆 ULTIMATE CLAIM SEQUENCE COMPLETED');
-            return results;
+            return result;
             
         } catch (error) {
             this.log(`💥 Ultimate claim failed: ${error.message}`, 'ERROR');
@@ -229,72 +207,14 @@ export class UltimatePiBot extends EventEmitter {
         }
     }
 
-    // Execute coordinated attack on the network
-    async executeCoordinatedAttack(transactions) {
-        this.log('⚡ EXECUTING COORDINATED NETWORK ATTACK');
-        
-        const results = [];
-        const promises = [];
-        
-        // Quantum submission - multiple parallel paths
-        for (let path = 0; path < this.config.parallelSubmissionPaths; path++) {
-            promises.push(this.executeSubmissionPath(transactions, path));
-        }
-        
-        // Burst mode submission
-        for (let burst = 0; burst < this.config.burstSubmissionCount; burst++) {
-            setTimeout(() => {
-                this.executeBurstSubmission(transactions[burst % transactions.length]);
-            }, burst * this.config.burstIntervalMs);
-        }
-        
-        // Wait for all paths to complete
-        const pathResults = await Promise.allSettled(promises);
-        
-        // Analyze results
-        const successful = pathResults.filter(r => r.status === 'fulfilled');
-        this.log(`🎯 Attack completed: ${successful.length}/${pathResults.length} paths successful`);
-        
-        return successful;
-    }
-
-    // Execute individual submission path
-    async executeSubmissionPath(transactions, pathId) {
-        try {
-            for (const tx of transactions) {
-                const result = await this.server.submitTransaction(tx);
-                if (result.hash) {
-                    this.log(`✅ Path ${pathId} successful: ${result.hash}`);
-                    return result;
-                }
-            }
-        } catch (error) {
-            this.log(`❌ Path ${pathId} failed: ${error.message}`, 'ERROR');
-            throw error;
-        }
-    }
-
-    // Execute burst submission
-    async executeBurstSubmission(transaction) {
-        try {
-            await this.server.submitTransaction(transaction);
-        } catch (error) {
-            // Silently fail - burst mode is for flooding
-        }
-    }
-
-    // Execute withdrawal with optimal fees
     async executeWithdrawal(toAddress, amount) {
         try {
             this.log(`💸 Executing withdrawal: ${amount} PI to ${toAddress}`);
             
             const account = await this.server.loadAccount(this.walletKeypair.publicKey());
             
-            // Calculate optimal withdrawal fee
-            const withdrawalFee = await this.feeOptimizer.calculateWithdrawalFee(amount);
-            
             const transaction = new StellarSdk.TransactionBuilder(account, {
-                fee: withdrawalFee.toString(),
+                fee: '100000000', // 10 PI for withdrawal
                 networkPassphrase: this.config.networkPassphrase,
             })
             .addOperation(StellarSdk.Operation.payment({
@@ -317,7 +237,6 @@ export class UltimatePiBot extends EventEmitter {
         }
     }
 
-    // Get recent transaction history
     async getRecentTransactions() {
         try {
             const response = await this.server
@@ -340,23 +259,15 @@ export class UltimatePiBot extends EventEmitter {
         }
     }
 
-    // Start continuous monitoring
     startUltimateMonitoring() {
         this.isActive = true;
         this.log('🚨 ULTIMATE MONITORING ACTIVATED - CRUSHING MODE ENGAGED');
         
-        // Start all monitoring subsystems
-        this.competitionIntelligence.startMonitoring();
-        this.networkFlooder.startPreparation();
-        this.feeOptimizer.startOptimization();
-        
-        // Main monitoring loop
         this.monitoringInterval = setInterval(() => {
             this.performUltimateMonitoring();
-        }, 100); // Monitor every 100ms for ultimate responsiveness
+        }, 1000);
     }
 
-    // Stop monitoring
     stopUltimateMonitoring() {
         this.isActive = false;
         if (this.monitoringInterval) {
@@ -365,10 +276,8 @@ export class UltimatePiBot extends EventEmitter {
         this.log('🛑 ULTIMATE MONITORING DEACTIVATED');
     }
 
-    // Perform ultimate monitoring
     async performUltimateMonitoring() {
         try {
-            // Monitor for unlock times approaching
             if (this.selectedBalance) {
                 const timeToUnlock = this.selectedBalance.unlockTime - Date.now();
                 
@@ -378,7 +287,6 @@ export class UltimatePiBot extends EventEmitter {
                 }
             }
             
-            // Emit status updates
             this.emit('monitoring', {
                 isActive: this.isActive,
                 competitionWins: this.competitionWins,
@@ -388,5 +296,30 @@ export class UltimatePiBot extends EventEmitter {
         } catch (error) {
             this.log(`❌ Monitoring error: ${error.message}`, 'ERROR');
         }
+    }
+}
+
+// Simplified helper classes for deployment
+class CompetitionIntelligence {
+    constructor(bot) {
+        this.bot = bot;
+    }
+}
+
+class NetworkFlooder {
+    constructor(bot) {
+        this.bot = bot;
+    }
+}
+
+class FeeOptimizer {
+    constructor(bot) {
+        this.bot = bot;
+    }
+}
+
+class TransactionManager {
+    constructor(bot) {
+        this.bot = bot;
     }
 }
