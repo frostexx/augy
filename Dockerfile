@@ -33,7 +33,7 @@ README.md
 # Lock files (we'll generate fresh ones)
 package-lock.json
 yarn.lock
-bun.lockb
+bun.lock
 
 # IDE
 .vscode/
