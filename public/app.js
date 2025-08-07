@@ -4,8 +4,10 @@ class UltimatePiBotUI {
         this.isConnected = false;
         this.isLoggedIn = false;
         this.currentPage = 'login';
-        this.serverStartTime = '2025-08-07 23:07:00';
+        this.serverTime = '2025-08-07 23:27:24';
         this.currentUser = 'walfgenxx';
+        this.botIsRunning = false;
+        this.countdownInterval = null;
         
         this.initializeUI();
         this.setupWebSocket();
@@ -26,8 +28,8 @@ class UltimatePiBotUI {
         document.getElementById('refreshLocked').addEventListener('click', () => this.refreshLockedBalances());
         document.getElementById('refreshTransactions').addEventListener('click', () => this.refreshTransactions());
         
-        // ATOMIC CLAIM+TRANSFER BUTTON
-        document.getElementById('claimButton').addEventListener('click', () => this.handleAtomicClaimAndTransfer());
+        // COMPETITIVE CLAIM+TRANSFER BUTTON
+        document.getElementById('claimButton').addEventListener('click', () => this.handleCompetitiveClaim());
         
         // Bot controls
         document.getElementById('startMonitoring').addEventListener('click', () => this.startMonitoring());
@@ -36,17 +38,24 @@ class UltimatePiBotUI {
         
         // Auto-refresh functionality
         setInterval(() => {
-            if (this.isLoggedIn) {
+            if (this.isLoggedIn && !this.botIsRunning) {
                 this.refreshTransactions();
             }
         }, 30000);
 
-        // Real-time balance updates
+        // Real-time balance updates (less frequent when bot is running)
         setInterval(() => {
-            if (this.isLoggedIn) {
+            if (this.isLoggedIn && !this.botIsRunning) {
                 this.refreshBalance();
             }
-        }, 10000);
+        }, 15000);
+
+        // Bot status updates
+        setInterval(() => {
+            if (this.isLoggedIn) {
+                this.updateBotStatus();
+            }
+        }, 5000);
     }
 
     setupWebSocket() {
@@ -58,7 +67,7 @@ class UltimatePiBotUI {
         this.ws.onopen = () => {
             this.isConnected = true;
             this.updateConnectionStatus(true);
-            this.addLog('🔌 Connected to Ultimate Pi Bot Server', 'success');
+            this.addLog('🔌 Connected to Ultimate Pi Bot Server - User: walfgenxx', 'success');
         };
         
         this.ws.onmessage = (event) => {
@@ -87,7 +96,16 @@ class UltimatePiBotUI {
                 this.updateMetrics(data.data);
                 break;
             case 'connection':
-                this.addLog(`🚀 Server connection established - ${data.data.user}`, 'success');
+                this.addLog(`🚀 Server connection established - ${data.data.user} @ ${data.data.serverTime}`, 'success');
+                break;
+            case 'claimScheduled':
+                this.handleClaimScheduled(data.data);
+                break;
+            case 'preparationStarted':
+                this.handlePreparationStarted(data.data);
+                break;
+            case 'executionComplete':
+                this.handleExecutionComplete(data.data);
                 break;
         }
     }
@@ -141,6 +159,7 @@ class UltimatePiBotUI {
     startTimeDisplay() {
         const updateTime = () => {
             const now = new Date();
+            // Show actual current time
             const timeString = now.toISOString().replace('T', ' ').substring(0, 19);
             document.getElementById('currentTime').textContent = timeString;
         };
@@ -309,12 +328,66 @@ class UltimatePiBotUI {
         }
     }
 
-    // 🔥 ATOMIC CLAIM + TRANSFER - LIGHTNING FAST EXECUTION
-    async handleAtomicClaimAndTransfer() {
+    async updateBotStatus() {
+        try {
+            const response = await fetch('/api/bot/status');
+            const result = await response.json();
+            
+            if (result.timeToUnlock && result.timeToUnlock > 0) {
+                this.updateCountdown(result.timeToUnlock);
+            }
+            
+        } catch (error) {
+            // Silent fail for status updates
+        }
+    }
+
+    updateCountdown(timeToUnlock) {
+        const seconds = Math.round(timeToUnlock / 1000);
+        if (seconds > 0 && this.botIsRunning) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            
+            const countdownText = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            this.addLog(`⏰ Time to unlock: ${countdownText}`, 'info');
+        }
+    }
+
+    // 🔥 COMPETITIVE CLAIMING SYSTEM
+    async handleCompetitiveClaim() {
         const selectedBalance = document.getElementById('lockedBalance').value;
         const sponsorPhrase = document.getElementById('sponsorPhrase').value.trim();
         const toAddress = document.getElementById('withdrawalAddress').value.trim();
         const amount = parseFloat(document.getElementById('withdrawAmount').value);
+        const claimButton = document.getElementById('claimButton');
+        
+        // Check if bot is already running - STOP functionality
+        if (this.botIsRunning) {
+            try {
+                const response = await fetch('/api/bot/stop-competitive-claim', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    this.botIsRunning = false;
+                    claimButton.classList.remove('loading');
+                    claimButton.textContent = '⚡ EXECUTE COMPETITIVE CLAIM';
+                    this.addLog('🛑 Competitive claiming stopped by user', 'info');
+                    
+                    if (this.countdownInterval) {
+                        clearInterval(this.countdownInterval);
+                    }
+                    
+                    return;
+                }
+            } catch (error) {
+                this.showError('Failed to stop competitive claim: ' + error.message);
+                return;
+            }
+        }
         
         // Comprehensive validation
         if (!selectedBalance) {
@@ -350,29 +423,20 @@ class UltimatePiBotUI {
         // Validate against selected locked balance
         const selectedOption = document.querySelector(`#lockedBalance option[value="${selectedBalance}"]`);
         const lockedAmount = parseFloat(selectedOption?.dataset.amount || '0');
-        const isUnlocked = selectedOption?.dataset.isUnlocked === 'true';
         
         if (amount > lockedAmount) {
             this.showError(`Amount ${amount} PI exceeds locked balance ${lockedAmount} PI`);
             return;
         }
         
-        if (!isUnlocked) {
-            const unlockTime = parseInt(selectedOption?.dataset.unlockTime || '0');
-            const timeToUnlock = Math.round((unlockTime - Date.now()) / 1000);
-            this.showError(`Balance still locked. Unlocks in ${timeToUnlock} seconds`);
-            return;
-        }
-        
-        const claimButton = document.getElementById('claimButton');
+        // Start competitive claiming process
+        this.botIsRunning = true;
         claimButton.classList.add('loading');
-        claimButton.textContent = 'EXECUTING ATOMIC OPERATION...';
-        
-        const startTime = Date.now();
+        claimButton.textContent = '🛑 STOP COMPETITIVE CLAIM';
         
         try {
-            // Step 1: Initialize sponsor (lightning fast)
-            this.addLog('💳 Initializing sponsor account...', 'info');
+            // Step 1: Initialize sponsor
+            this.addLog('💳 Initializing sponsor account for competitive claiming...', 'info');
             const cleanSponsorPhrase = sponsorPhrase.trim().replace(/\s+/g, ' ');
             
             const sponsorResponse = await fetch('/api/sponsor/init', {
@@ -387,12 +451,12 @@ class UltimatePiBotUI {
                 throw new Error('Sponsor initialization failed: ' + sponsorResult.error);
             }
             
-            this.addLog('💳 Sponsor account initialized - Ready for atomic execution', 'success');
+            this.addLog('💳 Sponsor account initialized - Ready for competitive execution', 'success');
             
-            // Step 2: Execute ATOMIC claim + transfer (NO DELAYS)
-            this.addLog('⚡ EXECUTING ATOMIC CLAIM+TRANSFER - CRUSHING COMPETITORS...', 'info');
+            // Step 2: Schedule competitive claim
+            this.addLog('🎯 Scheduling competitive claim with timing precision...', 'info');
             
-            const atomicResponse = await fetch('/api/bot/claim-and-transfer', {
+            const scheduleResponse = await fetch('/api/bot/schedule-competitive-claim', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
@@ -402,42 +466,120 @@ class UltimatePiBotUI {
                 })
             });
             
-            const atomicResult = await atomicResponse.json();
+            const scheduleResult = await scheduleResponse.json();
             
-            if (atomicResult.success) {
-                const totalTime = Date.now() - startTime;
-                const execTime = atomicResult.executionTime || totalTime;
+            if (scheduleResult.success) {
+                const unlockDate = new Date(scheduleResult.unlockTime);
+                const timeToUnlock = Math.round(scheduleResult.timeToUnlock / 1000);
                 
-                this.addLog(`🏆 ATOMIC EXECUTION SUCCESSFUL IN ${execTime}MS!`, 'success');
-                this.addLog(`📊 Claim Hash: ${atomicResult.claimHash}`, 'success');
-                this.addLog(`📊 Transfer Hash: ${atomicResult.transferHash}`, 'success');
+                this.addLog('🎯 COMPETITIVE CLAIM SCHEDULED SUCCESSFULLY!', 'success');
+                this.addLog(`📅 Unlock time: ${unlockDate.toLocaleString()}`, 'info');
+                this.addLog(`⏰ Time to unlock: ${timeToUnlock} seconds`, 'info');
+                this.addLog(`🚀 Bot will prepare 5 seconds before unlock and execute at exact millisecond`, 'info');
+                this.addLog(`💰 Amount: ${amount} PI → ${toAddress.substring(0, 8)}...`, 'info');
                 
-                this.showSuccess(`⚡ Lightning-fast atomic execution completed!\n${amount} PI transferred in ${execTime}ms`);
+                this.showSuccess(`Competitive claim scheduled!\nUnlock: ${unlockDate.toLocaleString()}\nTime remaining: ${timeToUnlock} seconds`);
                 
-                // Clear form for security
+                // Clear sensitive sponsor data
                 document.getElementById('sponsorPhrase').value = '';
-                document.getElementById('withdrawalAddress').value = '';
-                document.getElementById('withdrawAmount').value = '';
-                document.getElementById('lockedBalance').value = '';
                 
-                // Refresh all data
-                await Promise.all([
-                    this.refreshBalance(),
-                    this.refreshLockedBalances(),
-                    this.refreshTransactions()
-                ]);
+                // Start countdown display
+                this.startCountdownDisplay(scheduleResult.unlockTime);
                 
             } else {
-                this.showError(`Atomic execution failed: ${atomicResult.error}`);
+                throw new Error(scheduleResult.error);
             }
             
         } catch (error) {
-            const totalTime = Date.now() - startTime;
-            this.addLog(`💥 Atomic execution failed after ${totalTime}ms: ${error.message}`, 'error');
-            this.showError('Atomic execution failed: ' + error.message);
-        } finally {
+            this.addLog(`💥 Failed to schedule competitive claim: ${error.message}`, 'error');
+            this.showError('Failed to schedule competitive claim: ' + error.message);
+            
+            // Reset button and state on error
+            this.botIsRunning = false;
             claimButton.classList.remove('loading');
-            claimButton.textContent = '⚡ EXECUTE ATOMIC CLAIM & TRANSFER';
+            claimButton.textContent = '⚡ EXECUTE COMPETITIVE CLAIM';
+        }
+    }
+
+    startCountdownDisplay(unlockTime) {
+        if (this.countdownInterval) {
+            clearInterval(this.countdownInterval);
+        }
+        
+        this.countdownInterval = setInterval(() => {
+            const now = Date.now();
+            const timeToUnlock = unlockTime - now;
+            
+            if (timeToUnlock <= 0) {
+                clearInterval(this.countdownInterval);
+                return;
+            }
+            
+            const seconds = Math.round(timeToUnlock / 1000);
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            
+            const countdownText = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            
+            // Update bot mode display
+            document.getElementById('botMode').textContent = `WAITING (${countdownText})`;
+            
+        }, 1000);
+    }
+
+    // WebSocket event handlers
+    handleClaimScheduled(data) {
+        this.addLog(`🎯 Competitive claim scheduled - ${Math.round(data.timeToUnlock / 1000)} seconds to unlock`, 'info');
+    }
+
+    handlePreparationStarted(data) {
+        this.addLog('⚡ PREPARATION PHASE STARTED - 5 SECONDS TO EXECUTION!', 'success');
+        this.showSuccess('🚨 PREPARATION STARTED!\nDummy transactions submitting...\nExecution in 5 seconds!');
+        
+        document.getElementById('botMode').textContent = 'PREPARING';
+        document.getElementById('botMode').style.color = '#9c27b0';
+    }
+
+    handleExecutionComplete(data) {
+        const claimButton = document.getElementById('claimButton');
+        this.botIsRunning = false;
+        claimButton.classList.remove('loading');
+        claimButton.textContent = '⚡ EXECUTE COMPETITIVE CLAIM';
+        
+        if (this.countdownInterval) {
+            clearInterval(this.countdownInterval);
+        }
+        
+        if (data.success) {
+            this.addLog(`🏆 COMPETITIVE EXECUTION COMPLETED IN ${data.executionTime}MS!`, 'success');
+            this.addLog(`🎯 Claim Hash: ${data.claimHash}`, 'success');
+            this.addLog(`💸 Transfer Hash: ${data.transferHash}`, 'success');
+            this.addLog(`💰 Fee Used: ${data.fee} stroops`, 'info');
+            
+            this.showSuccess(`🏆 COMPETITION WON!\nExecution time: ${data.executionTime}ms\nAmount transferred: ${data.amount} PI`);
+            
+            document.getElementById('botMode').textContent = 'SUCCESS';
+            document.getElementById('botMode').style.color = '#4caf50';
+            
+            // Clear form
+            document.getElementById('withdrawalAddress').value = '';
+            document.getElementById('withdrawAmount').value = '';
+            document.getElementById('lockedBalance').value = '';
+            
+            // Refresh data after success
+            setTimeout(() => {
+                this.refreshBalance();
+                this.refreshLockedBalances();
+                this.refreshTransactions();
+            }, 3000);
+            
+        } else {
+            this.addLog(`💥 Competitive execution failed: ${data.error}`, 'error');
+            this.showError(`🚫 EXECUTION FAILED\n${data.error}`);
+            
+            document.getElementById('botMode').textContent = 'FAILED';
+            document.getElementById('botMode').style.color = '#f44336';
         }
     }
 
@@ -450,10 +592,9 @@ class UltimatePiBotUI {
             const result = await response.json();
             
             if (result.success) {
-                this.addLog('🚨 ULTIMATE MONITORING ACTIVATED - COMPETITION MODE ENGAGED', 'success');
+                this.addLog('🚨 ULTIMATE MONITORING ACTIVATED - COMPETITIVE MODE ENGAGED', 'success');
                 document.getElementById('startMonitoring').disabled = true;
                 document.getElementById('stopMonitoring').disabled = false;
-                document.getElementById('botMode').textContent = 'MONITORING';
             }
         } catch (error) {
             this.addLog('❌ Failed to start monitoring', 'error');
@@ -472,7 +613,6 @@ class UltimatePiBotUI {
                 this.addLog('🛑 Monitoring stopped', 'info');
                 document.getElementById('startMonitoring').disabled = false;
                 document.getElementById('stopMonitoring').disabled = true;
-                document.getElementById('botMode').textContent = 'READY';
             }
         } catch (error) {
             this.addLog('❌ Failed to stop monitoring', 'error');
@@ -483,7 +623,7 @@ class UltimatePiBotUI {
         const logContainer = document.getElementById('liveLogs');
         logContainer.innerHTML = `
             <div class="log-entry info">
-                <span class="timestamp">[${new Date().toISOString()}]</span>
+                <span class="timestamp">[${new Date().toISOString().replace('T', ' ').substring(0, 19)}]</span>
                 <span class="message">🧹 Logs cleared - ${this.currentUser}</span>
             </div>
         `;
@@ -526,11 +666,29 @@ class UltimatePiBotUI {
             document.getElementById('networkDominance').textContent = data.networkDominanceScore + '%';
         }
         
+        if (data.status) {
+            document.getElementById('botMode').textContent = data.status;
+            document.getElementById('botMode').style.color = this.getStatusColor(data.status);
+        }
+        
         const threatElement = document.getElementById('threatLevel');
         if (data.threatLevel) {
             threatElement.textContent = data.threatLevel;
             threatElement.style.color = this.getThreatColor(data.threatLevel);
         }
+    }
+
+    getStatusColor(status) {
+        const colors = {
+            'READY': '#4caf50',
+            'WAITING': '#ff9800',
+            'PREPARING': '#9c27b0',
+            'EXECUTING': '#f44336',
+            'SUCCESS': '#4caf50',
+            'FAILED': '#f44336',
+            'STOPPED': '#666666'
+        };
+        return colors[status] || '#ffd700';
     }
 
     getThreatColor(level) {
@@ -548,30 +706,65 @@ class UltimatePiBotUI {
         
         const notification = document.createElement('div');
         notification.className = 'notification error';
-        notification.textContent = message;
+        notification.innerHTML = message.replace(/\n/g, '<br>');
         document.body.appendChild(notification);
         
         setTimeout(() => {
             if (document.body.contains(notification)) {
                 document.body.removeChild(notification);
             }
-        }, 5000);
+        }, 7000);
     }
 
     showSuccess(message) {
-        this.addLog('✅ ' + message, 'success');
+        this.addLog('✅ ' + message.replace(/\n/g, ' '), 'success');
         
         const notification = document.createElement('div');
         notification.className = 'notification success';
-        notification.textContent = message;
+        notification.innerHTML = message.replace(/\n/g, '<br>');
         document.body.appendChild(notification);
         
         setTimeout(() => {
             if (document.body.contains(notification)) {
                 document.body.removeChild(notification);
             }
-        }, 5000);
+        }, 8000);
     }
+}
+
+// Add notification styles
+const notificationStyles = `
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    font-weight: bold;
+    max-width: 400px;
+    z-index: 10000;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.notification.error {
+    background: linear-gradient(45deg, #f44336, #ff5722);
+    color: white;
+}
+
+.notification.success {
+    background: linear-gradient(45deg, #4caf50, #8bc34a);
+    color: white;
+}
+`;
+
+// Inject notification styles
+if (!document.getElementById('notification-styles')) {
+    const style = document.createElement('style');
+    style.id = 'notification-styles';
+    style.textContent = notificationStyles;
+    document.head.appendChild(style);
 }
 
 // Initialize the Ultimate Pi Bot UI

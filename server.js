@@ -46,8 +46,8 @@ wss.on('connection', (ws) => {
         type: 'connection', 
         data: { 
             status: 'connected', 
-            timestamp: new Date().toISOString(),
-            serverTime: '2025-08-07 23:07:00 UTC',
+            timestamp: '2025-08-07 23:27:24',
+            serverTime: '2025-08-07 23:27:24 UTC',
             user: 'walfgenxx'
         }
     }));
@@ -64,14 +64,38 @@ wss.on('connection', (ws) => {
             ws.send(JSON.stringify({ type: 'status', data: statusData }));
         }
     };
+
+    const claimScheduledHandler = (data) => {
+        if (ws.readyState === ws.OPEN) {
+            ws.send(JSON.stringify({ type: 'claimScheduled', data }));
+        }
+    };
+
+    const preparationStartedHandler = (data) => {
+        if (ws.readyState === ws.OPEN) {
+            ws.send(JSON.stringify({ type: 'preparationStarted', data }));
+        }
+    };
+
+    const executionCompleteHandler = (data) => {
+        if (ws.readyState === ws.OPEN) {
+            ws.send(JSON.stringify({ type: 'executionComplete', data }));
+        }
+    };
     
     ultimateBot.on('log', logHandler);
     ultimateBot.on('monitoring', statusHandler);
+    ultimateBot.on('claimScheduled', claimScheduledHandler);
+    ultimateBot.on('preparationStarted', preparationStartedHandler);
+    ultimateBot.on('executionComplete', executionCompleteHandler);
     
     ws.on('close', () => {
         console.log('🔌 Client disconnected');
         ultimateBot.removeListener('log', logHandler);
         ultimateBot.removeListener('monitoring', statusHandler);
+        ultimateBot.removeListener('claimScheduled', claimScheduledHandler);
+        ultimateBot.removeListener('preparationStarted', preparationStartedHandler);
+        ultimateBot.removeListener('executionComplete', executionCompleteHandler);
     });
     
     ws.on('error', (error) => {
@@ -83,8 +107,8 @@ wss.on('connection', (ws) => {
 app.get('/api/health', (req, res) => {
     res.json({ 
         status: 'ULTIMATE', 
-        timestamp: new Date().toISOString(),
-        serverTime: '2025-08-07 23:07:00 UTC',
+        timestamp: '2025-08-07 23:27:24',
+        serverTime: '2025-08-07 23:27:24 UTC',
         user: 'walfgenxx',
         botActive: ultimateBot ? ultimateBot.isActive : false,
         nodeVersion: process.version,
@@ -156,7 +180,54 @@ app.get('/api/wallet/locked', async (req, res) => {
     }
 });
 
-// Execute atomic claim and transfer - LIGHTNING FAST
+// Schedule competitive claim - THE PROPER COMPETITIVE WAY
+app.post('/api/bot/schedule-competitive-claim', async (req, res) => {
+    try {
+        const { balanceId, toAddress, amount } = req.body;
+        
+        if (!balanceId || !toAddress || !amount) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Balance ID, address, and amount are required' 
+            });
+        }
+        
+        if (!ultimateBot.walletKeypair || !ultimateBot.sponsorKeypair) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Wallet and sponsor must be initialized' 
+            });
+        }
+        
+        // Schedule the competitive claim
+        const result = await ultimateBot.scheduleCompetitiveClaim(balanceId, toAddress, amount);
+        
+        res.json({ 
+            success: true, 
+            unlockTime: result.unlockTime,
+            timeToUnlock: result.timeToUnlock,
+            status: result.status,
+            message: `Competitive claim scheduled - will execute at unlock time in ${Math.round(result.timeToUnlock / 1000)} seconds`
+        });
+        
+    } catch (error) {
+        console.error('Schedule competitive claim error:', error);
+        res.status(400).json({ success: false, error: error.message });
+    }
+});
+
+// Stop competitive claim
+app.post('/api/bot/stop-competitive-claim', (req, res) => {
+    try {
+        ultimateBot.stopCompetitiveMonitoring();
+        res.json({ success: true, message: 'Competitive claim stopped successfully' });
+    } catch (error) {
+        console.error('Stop competitive claim error:', error);
+        res.status(400).json({ success: false, error: error.message });
+    }
+});
+
+// Execute atomic claim and transfer - LEGACY SUPPORT
 app.post('/api/bot/claim-and-transfer', async (req, res) => {
     try {
         const { balanceId, toAddress, amount } = req.body;
@@ -175,56 +246,18 @@ app.post('/api/bot/claim-and-transfer', async (req, res) => {
             });
         }
         
-        // Execute atomic claim and transfer (NO DELAYS)
-        const result = await ultimateBot.executeUnifiedClaimAndTransfer(balanceId, toAddress, amount);
+        // Use the competitive claiming system
+        const result = await ultimateBot.scheduleCompetitiveClaim(balanceId, toAddress, amount);
         
         res.json({ 
             success: true, 
-            claimHash: result.claimHash,
-            transferHash: result.transferHash,
-            executionTime: result.executionTime,
-            message: `Atomic execution completed in ${result.executionTime}ms - Competitors crushed!`
+            unlockTime: result.unlockTime,
+            timeToUnlock: result.timeToUnlock,
+            message: `Competitive claim initiated - preparing for unlock time`
         });
         
     } catch (error) {
-        console.error('Atomic claim and transfer error:', error);
-        res.status(400).json({ success: false, error: error.message });
-    }
-});
-
-// Execute quantum claim and transfer (ULTIMATE SPEED MODE)
-app.post('/api/bot/quantum-claim-transfer', async (req, res) => {
-    try {
-        const { balanceId, toAddress, amount } = req.body;
-        
-        if (!balanceId || !toAddress || !amount) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Balance ID, address, and amount are required' 
-            });
-        }
-        
-        if (!ultimateBot.walletKeypair || !ultimateBot.sponsorKeypair) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Wallet and sponsor must be initialized' 
-            });
-        }
-        
-        // Execute quantum multi-path claim and transfer
-        const result = await ultimateBot.executeQuantumClaimAndTransfer(balanceId, toAddress, amount);
-        
-        res.json({ 
-            success: true, 
-            claimHash: result.claimHash,
-            transferHash: result.transferHash,
-            executionTime: result.executionTime,
-            parallelPaths: result.parallelPaths,
-            message: `Quantum execution completed in ${result.executionTime}ms using ${result.parallelPaths} parallel paths`
-        });
-        
-    } catch (error) {
-        console.error('Quantum claim and transfer error:', error);
+        console.error('Claim and transfer error:', error);
         res.status(400).json({ success: false, error: error.message });
     }
 });
@@ -293,11 +326,25 @@ app.get('/api/wallet/transactions', async (req, res) => {
 
 // Get current server time
 app.get('/api/time', (req, res) => {
+    const now = new Date();
     res.json({
-        serverTime: new Date().toISOString(),
-        utcTime: '2025-08-07 23:07:00 UTC',
+        serverTime: now.toISOString().replace('T', ' ').substring(0, 19),
+        utcTime: '2025-08-07 23:27:24',
         user: 'walfgenxx',
         timestamp: Date.now()
+    });
+});
+
+// Get bot status
+app.get('/api/bot/status', (req, res) => {
+    res.json({
+        isActive: ultimateBot.isActive,
+        isPreparing: ultimateBot.isPreparing,
+        isExecuting: ultimateBot.isExecuting,
+        status: ultimateBot.getStatus ? ultimateBot.getStatus() : 'READY',
+        unlockTime: ultimateBot.unlockTime,
+        timeToUnlock: ultimateBot.unlockTime ? ultimateBot.unlockTime - Date.now() : null,
+        user: 'walfgenxx'
     });
 });
 
@@ -323,7 +370,7 @@ server.listen(PORT, () => {
     console.log(`🚀 ULTIMATE PI BOT SERVER RUNNING ON PORT ${PORT}`);
     console.log(`🌐 Dashboard: ${process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`}`);
     console.log(`📊 Health Check: ${process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`}/api/health`);
-    console.log(`⏰ Server Time: 2025-08-07 23:07:00 UTC`);
+    console.log(`⏰ Server Time: 2025-08-07 23:27:24 UTC`);
     console.log(`👤 User: walfgenxx`);
 });
 
