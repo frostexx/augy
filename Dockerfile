@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
-COPY bun.lockb ./
+COPY bun.lock ./
 
 # Copy source code
 COPY . .
