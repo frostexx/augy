@@ -32,3 +32,15 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# DO NOT ignore these important project files
+!package.json
+!package-lock.json
+!bun.lock
+!tsconfig.json
+!index.ts
+!claim.ts
+!claim2.ts
+!bot.ts
+!bot1.ts
+!bot2.ts
