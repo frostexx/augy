@@ -1,6 +1,0 @@
-services:
-  - type: web
-    name: pi-network-bot
-    runtime: docker
-    dockerfilePath: ./Dockerfile
-    dockerContext: .

