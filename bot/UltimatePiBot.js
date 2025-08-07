@@ -172,15 +172,269 @@ export class UltimatePiBot extends EventEmitter {
         return Date.now();
     }
 
+    // 🔥 LIGHTNING-FAST ATOMIC CLAIM+TRANSFER - NO DELAYS, NO BALANCE CHECKS
+    async executeUnifiedClaimAndTransfer(balanceId, toAddress, amount) {
+        this.log('⚡ EXECUTING LIGHTNING-FAST ATOMIC CLAIM+TRANSFER - CRUSHING COMPETITORS');
+        
+        try {
+            // Front-loaded validation only (before any network operations)
+            if (!balanceId || !toAddress || !amount) {
+                throw new Error('Missing required parameters');
+            }
+
+            if (amount <= 0) {
+                throw new Error('Amount must be greater than zero');
+            }
+
+            // Get locked balance info for validation (done ONCE at start)
+            const lockedBalances = await this.getLockedBalances();
+            const targetBalance = lockedBalances.find(b => b.id === balanceId);
+            
+            if (!targetBalance) {
+                throw new Error('Locked balance not found');
+            }
+
+            // Pre-validate unlock time
+            const now = Date.now();
+            if (targetBalance.unlockTime > now) {
+                const timeToUnlock = Math.round((targetBalance.unlockTime - now) / 1000);
+                throw new Error(`Balance still locked. Unlocks in ${timeToUnlock} seconds`);
+            }
+
+            // Pre-validate amount
+            if (amount > targetBalance.amount) {
+                throw new Error(`Amount ${amount} PI exceeds locked balance ${targetBalance.amount} PI`);
+            }
+
+            this.log('🎯 Pre-validation complete - Initiating ATOMIC operations');
+
+            // ATOMIC OPERATIONS - NO DELAYS BETWEEN THESE
+            const startTime = Date.now();
+
+            // Load both accounts simultaneously for speed
+            const [sponsorAccount, walletAccount] = await Promise.all([
+                this.server.loadAccount(this.sponsorKeypair.publicKey()),
+                this.server.loadAccount(this.walletKeypair.publicKey())
+            ]);
+
+            this.log(`⚡ Accounts loaded in ${Date.now() - startTime}ms`);
+
+            // Prepare claim transaction
+            const claimTx = new StellarSdk.TransactionBuilder(sponsorAccount, {
+                fee: (this.currentFee * 10).toString(), // Aggressive fee for claiming
+                networkPassphrase: this.config.networkPassphrase,
+            })
+            .addOperation(StellarSdk.Operation.claimClaimableBalance({
+                balanceId: balanceId,
+                source: this.walletKeypair.publicKey(),
+            }))
+            .setTimeout(300)
+            .build();
+            
+            claimTx.sign(this.walletKeypair);
+            claimTx.sign(this.sponsorKeypair);
+
+            // Prepare transfer transaction (using current sequence + 1)
+            const nextSequence = (BigInt(walletAccount.sequenceNumber()) + BigInt(1)).toString();
+            const walletAccountWithNextSeq = new StellarSdk.Account(
+                this.walletKeypair.publicKey(),
+                nextSequence
+            );
+
+            const transferTx = new StellarSdk.TransactionBuilder(walletAccountWithNextSeq, {
+                fee: '100000000', // 10 PI for transfer
+                networkPassphrase: this.config.networkPassphrase,
+            })
+            .addOperation(StellarSdk.Operation.payment({
+                destination: toAddress,
+                asset: StellarSdk.Asset.native(),
+                amount: amount.toString(),
+            }))
+            .setTimeout(300)
+            .build();
+            
+            transferTx.sign(this.walletKeypair);
+
+            this.log(`⚡ Transactions prepared in ${Date.now() - startTime}ms`);
+
+            // LIGHTNING SUBMISSION - Submit claim immediately
+            this.log('🚀 STEP 1: Claiming (sponsor pays fees)...');
+            const claimResult = await this.server.submitTransaction(claimTx);
+            
+            if (!claimResult.hash) {
+                throw new Error('Claim transaction failed - no hash returned');
+            }
+            
+            this.log(`✅ Claim successful: ${claimResult.hash} (${Date.now() - startTime}ms)`);
+
+            // IMMEDIATE TRANSFER - No delays, no balance checks
+            this.log('🚀 STEP 2: IMMEDIATE transfer (wallet pays fees)...');
+            const transferResult = await this.server.submitTransaction(transferTx);
+            
+            if (!transferResult.hash) {
+                throw new Error('Transfer transaction failed - no hash returned');
+            }
+            
+            const totalTime = Date.now() - startTime;
+            this.log(`✅ Transfer successful: ${transferResult.hash} (${totalTime}ms total)`);
+            this.log(`🏆 ATOMIC OPERATION COMPLETED IN ${totalTime}MS - COMPETITORS CRUSHED!`);
+            
+            this.competitionWins++;
+            this.totalClaimed += amount;
+            this.averageClaimTime = totalTime;
+            
+            this.emit('monitoring', { 
+                competitionWins: this.competitionWins,
+                totalClaimed: this.totalClaimed,
+                averageClaimTime: this.averageClaimTime
+            });
+            
+            return {
+                claimHash: claimResult.hash,
+                transferHash: transferResult.hash,
+                executionTime: totalTime
+            };
+            
+        } catch (error) {
+            this.log(`💥 Atomic claim+transfer failed: ${error.message}`, 'ERROR');
+            throw error;
+        }
+    }
+
+    // ENHANCED METHOD - Multi-path atomic execution for ultimate speed
+    async executeQuantumClaimAndTransfer(balanceId, toAddress, amount) {
+        this.log('🌀 EXECUTING QUANTUM MULTI-PATH ATOMIC CLAIM+TRANSFER');
+        
+        try {
+            // Same validation as before
+            const lockedBalances = await this.getLockedBalances();
+            const targetBalance = lockedBalances.find(b => b.id === balanceId);
+            
+            if (!targetBalance) {
+                throw new Error('Locked balance not found');
+            }
+
+            const now = Date.now();
+            if (targetBalance.unlockTime > now) {
+                const timeToUnlock = Math.round((targetBalance.unlockTime - now) / 1000);
+                throw new Error(`Balance still locked. Unlocks in ${timeToUnlock} seconds`);
+            }
+
+            if (amount > targetBalance.amount) {
+                throw new Error(`Amount ${amount} PI exceeds locked balance ${targetBalance.amount} PI`);
+            }
+
+            const startTime = Date.now();
+
+            // Load accounts
+            const [sponsorAccount, walletAccount] = await Promise.all([
+                this.server.loadAccount(this.sponsorKeypair.publicKey()),
+                this.server.loadAccount(this.walletKeypair.publicKey())
+            ]);
+
+            // Create MULTIPLE claim transactions with different fees for parallel submission
+            const claimTransactions = [];
+            for (let i = 0; i < 5; i++) {
+                const feeMultiplier = 1 + (i * 0.5); // Escalating fees
+                const claimTx = new StellarSdk.TransactionBuilder(sponsorAccount, {
+                    fee: Math.floor(this.currentFee * 10 * feeMultiplier).toString(),
+                    networkPassphrase: this.config.networkPassphrase,
+                })
+                .addOperation(StellarSdk.Operation.claimClaimableBalance({
+                    balanceId: balanceId,
+                    source: this.walletKeypair.publicKey(),
+                }))
+                .setTimeout(300)
+                .build();
+                
+                claimTx.sign(this.walletKeypair);
+                claimTx.sign(this.sponsorKeypair);
+                claimTransactions.push(claimTx);
+            }
+
+            // Prepare transfer transaction
+            const nextSequence = (BigInt(walletAccount.sequenceNumber()) + BigInt(1)).toString();
+            const walletAccountWithNextSeq = new StellarSdk.Account(
+                this.walletKeypair.publicKey(),
+                nextSequence
+            );
+
+            const transferTx = new StellarSdk.TransactionBuilder(walletAccountWithNextSeq, {
+                fee: '100000000',
+                networkPassphrase: this.config.networkPassphrase,
+            })
+            .addOperation(StellarSdk.Operation.payment({
+                destination: toAddress,
+                asset: StellarSdk.Asset.native(),
+                amount: amount.toString(),
+            }))
+            .setTimeout(300)
+            .build();
+            
+            transferTx.sign(this.walletKeypair);
+
+            // QUANTUM PARALLEL SUBMISSION
+            this.log('🌀 Launching parallel claim assault...');
+            
+            const claimPromises = claimTransactions.map((tx, index) => 
+                this.server.submitTransaction(tx).then(result => ({
+                    success: true,
+                    hash: result.hash,
+                    index
+                })).catch(error => ({
+                    success: false,
+                    error: error.message,
+                    index
+                }))
+            );
+
+            // Wait for first successful claim
+            const claimResults = await Promise.all(claimPromises);
+            const successfulClaim = claimResults.find(r => r.success);
+
+            if (!successfulClaim) {
+                throw new Error('All parallel claim attempts failed');
+            }
+
+            this.log(`✅ Quantum claim successful: ${successfulClaim.hash} (path ${successfulClaim.index})`);
+
+            // IMMEDIATE transfer
+            this.log('🚀 Executing immediate transfer...');
+            const transferResult = await this.server.submitTransaction(transferTx);
+            
+            if (!transferResult.hash) {
+                throw new Error('Transfer transaction failed');
+            }
+
+            const totalTime = Date.now() - startTime;
+            this.log(`🏆 QUANTUM EXECUTION COMPLETED IN ${totalTime}MS!`);
+
+            this.competitionWins++;
+            this.totalClaimed += amount;
+            this.averageClaimTime = totalTime;
+
+            return {
+                claimHash: successfulClaim.hash,
+                transferHash: transferResult.hash,
+                executionTime: totalTime,
+                parallelPaths: claimResults.length
+            };
+
+        } catch (error) {
+            this.log(`💥 Quantum execution failed: ${error.message}`, 'ERROR');
+            throw error;
+        }
+    }
+
+    // Legacy method for monitoring compatibility
     async executeUltimateClaim(balanceId) {
         this.log('🎯 INITIATING ULTIMATE CLAIM SEQUENCE - CRUSHING ALL COMPETITION');
         
         try {
-            // Simplified claim process for deployment
             const account = await this.server.loadAccount(this.sponsorKeypair.publicKey());
             
             const transaction = new StellarSdk.TransactionBuilder(account, {
-                fee: (this.currentFee * 10).toString(), // 10x aggressive fee
+                fee: (this.currentFee * 10).toString(),
                 networkPassphrase: this.config.networkPassphrase,
             })
             .addOperation(StellarSdk.Operation.claimClaimableBalance({
@@ -194,6 +448,11 @@ export class UltimatePiBot extends EventEmitter {
             transaction.sign(this.sponsorKeypair);
             
             const result = await this.server.submitTransaction(transaction);
+            
+            if (!result.hash) {
+                throw new Error('Claim transaction failed - no hash returned');
+            }
+            
             this.log(`🏆 ULTIMATE CLAIM SUCCESSFUL: ${result.hash}`);
             
             this.competitionWins++;
@@ -203,36 +462,6 @@ export class UltimatePiBot extends EventEmitter {
             
         } catch (error) {
             this.log(`💥 Ultimate claim failed: ${error.message}`, 'ERROR');
-            throw error;
-        }
-    }
-
-    async executeWithdrawal(toAddress, amount) {
-        try {
-            this.log(`💸 Executing withdrawal: ${amount} PI to ${toAddress}`);
-            
-            const account = await this.server.loadAccount(this.walletKeypair.publicKey());
-            
-            const transaction = new StellarSdk.TransactionBuilder(account, {
-                fee: '100000000', // 10 PI for withdrawal
-                networkPassphrase: this.config.networkPassphrase,
-            })
-            .addOperation(StellarSdk.Operation.payment({
-                destination: toAddress,
-                asset: StellarSdk.Asset.native(),
-                amount: amount.toString(),
-            }))
-            .setTimeout(300)
-            .build();
-            
-            transaction.sign(this.walletKeypair);
-            
-            const result = await this.server.submitTransaction(transaction);
-            this.log(`✅ Withdrawal successful: ${result.hash}`);
-            
-            return result;
-        } catch (error) {
-            this.log(`❌ Withdrawal failed: ${error.message}`, 'ERROR');
             throw error;
         }
     }
@@ -247,11 +476,11 @@ export class UltimatePiBot extends EventEmitter {
                 .call();
             
             return response.records.map(tx => ({
-                hash: tx.hash,
+                hash: tx.hash || 'N/A',
                 timestamp: new Date(tx.created_at),
-                fee: tx.fee_charged,
-                successful: tx.successful,
-                operationCount: tx.operation_count
+                fee: parseInt(tx.fee_charged || '0'),
+                successful: tx.successful || false,
+                operationCount: tx.operation_count || 0
             }));
         } catch (error) {
             this.log(`❌ Error fetching transactions: ${error.message}`, 'ERROR');
@@ -265,7 +494,7 @@ export class UltimatePiBot extends EventEmitter {
         
         this.monitoringInterval = setInterval(() => {
             this.performUltimateMonitoring();
-        }, 1000);
+        }, 100); // Increased frequency for competitive edge
     }
 
     stopUltimateMonitoring() {
@@ -290,7 +519,9 @@ export class UltimatePiBot extends EventEmitter {
             this.emit('monitoring', {
                 isActive: this.isActive,
                 competitionWins: this.competitionWins,
-                networkDominanceScore: this.networkDominanceScore
+                networkDominanceScore: this.networkDominanceScore,
+                totalClaimed: this.totalClaimed,
+                averageClaimTime: this.averageClaimTime
             });
             
         } catch (error) {

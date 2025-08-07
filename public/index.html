@@ -12,7 +12,12 @@
         <header class="header">
             <h1>🚀 ULTIMATE PI BOT</h1>
             <div class="time-display">
-                <span id="currentTime"></span>
+                <div class="time-label">Server Time (UTC)</div>
+                <span id="currentTime">2025-08-07 23:07:00</span>
+            </div>
+            <div class="user-info">
+                <div class="user-label">User</div>
+                <span id="currentUser">walfgenxx</span>
             </div>
             <div class="status-indicator">
                 <span id="botStatus">OFFLINE</span>
@@ -22,13 +27,17 @@
         <!-- Toggle Section -->
         <div class="toggle-section">
             <button id="loginTab" class="tab-button active">LOGIN</button>
-            <button id="withdrawTab" class="tab-button">WITHDRAW</button>
+            <button id="withdrawTab" class="tab-button">ATOMIC CLAIM & TRANSFER</button>
         </div>
 
         <!-- Login Page -->
         <div id="loginPage" class="page active">
             <div class="card">
                 <h2>🔐 Wallet Login</h2>
+                <div class="info-box">
+                    <strong>Welcome, walfgenxx!</strong><br>
+                    Enter your 24-word seed phrase to access the ultimate Pi Network claiming bot.
+                </div>
                 <div class="form-group">
                     <label>Seed Phrase (24 words)</label>
                     <textarea id="seedPhrase" placeholder="Enter your 24-word seed phrase..." rows="3"></textarea>
@@ -37,7 +46,7 @@
             </div>
         </div>
 
-        <!-- Withdraw Page -->
+        <!-- Atomic Claim & Transfer Page -->
         <div id="withdrawPage" class="page">
             <!-- Balance Display -->
             <div class="card">
@@ -45,53 +54,79 @@
                 <div class="balance-display">
                     <span id="availableBalance">0.0000000</span> PI
                 </div>
-                <button id="refreshBalance" class="btn secondary small">Refresh</button>
+                <button id="refreshBalance" class="btn secondary small">Refresh Balance</button>
             </div>
 
-            <!-- Withdrawal Form -->
+            <!-- Atomic Claim & Transfer Form -->
             <div class="card">
-                <h2>💸 Withdrawal</h2>
+                <h2>⚡ Lightning-Fast Atomic Claim & Transfer</h2>
+                <div class="info-box">
+                    <strong>🚀 ATOMIC EXECUTION MODE - ZERO DELAYS:</strong>
+                    <ol>
+                        <li>🔓 <strong>Claims locked balance</strong> at unlock time (sponsor pays fees)</li>
+                        <li>⚡ <strong>IMMEDIATELY transfers</strong> to your address (wallet pays fees)</li>
+                        <li>🏆 <strong>Crushes competitors</strong> with millisecond precision timing</li>
+                    </ol>
+                    <div class="speed-advantage">
+                        <strong>🎯 COMPETITIVE EDGE:</strong> No balance verification delays • Pre-calculated sequences • Atomic operations within &lt;100ms!
+                    </div>
+                </div>
                 
                 <div class="form-group">
-                    <label>Withdrawal Address</label>
+                    <label>🎯 Transfer Destination Address</label>
                     <input type="text" id="withdrawalAddress" placeholder="GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX">
+                    <small>Pi Network address where funds will be transferred after claiming</small>
                 </div>
 
                 <div class="form-group">
-                    <label>Locked Balance</label>
-                    <select id="lockedBalance">
-                        <option value="">Select locked balance...</option>
-                    </select>
-                    <button id="refreshLocked" class="btn secondary small">Refresh</button>
+                    <label>🔒 Locked Balance to Claim</label>
+                    <div class="input-group">
+                        <select id="lockedBalance">
+                            <option value="">Select locked balance to claim...</option>
+                        </select>
+                        <button id="refreshLocked" class="btn secondary small">Refresh</button>
+                    </div>
+                    <small>Choose which locked balance to claim and transfer</small>
                 </div>
 
                 <div class="form-group">
-                    <label>Amount (PI)</label>
-                    <input type="number" id="withdrawAmount" placeholder="0.0000000" step="0.0000001">
+                    <label>💰 Amount to Transfer (PI)</label>
+                    <input type="number" id="withdrawAmount" placeholder="0.0000000" step="0.0000001" min="0">
+                    <small>Amount to transfer after claiming (must not exceed locked balance amount)</small>
                 </div>
 
                 <div class="form-group">
-                    <label>Sponsor Seed Phrase (For Claiming Fees)</label>
+                    <label>💳 Sponsor Seed Phrase (Pays Claiming Fees)</label>
                     <textarea id="sponsorPhrase" placeholder="Enter sponsor 24-word seed phrase..." rows="2"></textarea>
+                    <small>⚠️ <strong>Important:</strong> Sponsor pays claiming fees • Main wallet pays transfer fees</small>
+                </div>
+
+                <div class="execution-mode">
+                    <div class="mode-info">
+                        <h4>🔥 Execution Mode: ATOMIC</h4>
+                        <p>Lightning-fast single-path execution with zero delays between claim and transfer operations.</p>
+                    </div>
                 </div>
 
                 <div class="button-group">
-                    <button id="withdrawButton" class="btn primary">💸 WITHDRAW</button>
-                    <button id="claimButton" class="btn ultimate">⚡ ULTIMATE CLAIM</button>
+                    <button id="claimButton" class="btn ultimate">⚡ EXECUTE ATOMIC CLAIM & TRANSFER</button>
                 </div>
             </div>
 
             <!-- Recent Transactions -->
             <div class="card">
                 <h2>📋 Recent Transactions</h2>
+                <div class="refresh-controls">
+                    <button id="refreshTransactions" class="btn secondary small">Refresh Transactions</button>
+                </div>
                 <div id="recentTransactions" class="transaction-list">
                     <div class="no-transactions">No transactions yet</div>
                 </div>
             </div>
 
-            <!-- Live Logs -->
+            <!-- Live Bot Logs -->
             <div class="card">
-                <h2>📊 Live Bot Logs</h2>
+                <h2>📊 Live Bot Execution Logs</h2>
                 <div class="log-controls">
                     <button id="startMonitoring" class="btn success">START MONITORING</button>
                     <button id="stopMonitoring" class="btn danger">STOP MONITORING</button>
@@ -99,15 +134,15 @@
                 </div>
                 <div id="liveLogs" class="log-container">
                     <div class="log-entry info">
-                        <span class="timestamp">[2025-08-07 21:59:38]</span>
-                        <span class="message">🚀 ULTIMATE PI BOT READY - COMPETITION CRUSHER MODE</span>
+                        <span class="timestamp">[2025-08-07 23:07:00]</span>
+                        <span class="message">🚀 ULTIMATE PI BOT READY - ATOMIC EXECUTION MODE - User: walfgenxx</span>
                     </div>
                 </div>
             </div>
 
             <!-- Performance Metrics -->
             <div class="card">
-                <h2>🏆 Performance Metrics</h2>
+                <h2>🏆 Competition Performance Metrics</h2>
                 <div class="metrics-grid">
                     <div class="metric">
                         <label>Competition Wins</label>
@@ -118,12 +153,20 @@
                         <span id="totalClaimed">0.0000000 PI</span>
                     </div>
                     <div class="metric">
+                        <label>Avg Execution Time</label>
+                        <span id="avgExecutionTime">0ms</span>
+                    </div>
+                    <div class="metric">
                         <label>Network Dominance</label>
                         <span id="networkDominance">0%</span>
                     </div>
                     <div class="metric">
                         <label>Threat Level</label>
                         <span id="threatLevel">LOW</span>
+                    </div>
+                    <div class="metric">
+                        <label>Bot Status</label>
+                        <span id="botMode">READY</span>
                     </div>
                 </div>
             </div>

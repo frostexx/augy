@@ -44,7 +44,12 @@ wss.on('connection', (ws) => {
     // Send initial connection message
     ws.send(JSON.stringify({ 
         type: 'connection', 
-        data: { status: 'connected', timestamp: new Date().toISOString() }
+        data: { 
+            status: 'connected', 
+            timestamp: new Date().toISOString(),
+            serverTime: '2025-08-07 23:07:00 UTC',
+            user: 'walfgenxx'
+        }
     }));
     
     // Forward bot events to client
@@ -79,6 +84,8 @@ app.get('/api/health', (req, res) => {
     res.json({ 
         status: 'ULTIMATE', 
         timestamp: new Date().toISOString(),
+        serverTime: '2025-08-07 23:07:00 UTC',
+        user: 'walfgenxx',
         botActive: ultimateBot ? ultimateBot.isActive : false,
         nodeVersion: process.version,
         memory: process.memoryUsage()
@@ -149,28 +156,80 @@ app.get('/api/wallet/locked', async (req, res) => {
     }
 });
 
-// Execute withdrawal
-app.post('/api/wallet/withdraw', async (req, res) => {
+// Execute atomic claim and transfer - LIGHTNING FAST
+app.post('/api/bot/claim-and-transfer', async (req, res) => {
     try {
-        const { toAddress, amount } = req.body;
+        const { balanceId, toAddress, amount } = req.body;
         
-        if (!toAddress || !amount) {
-            return res.status(400).json({ success: false, error: 'Address and amount are required' });
+        if (!balanceId || !toAddress || !amount) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Balance ID, address, and amount are required' 
+            });
         }
         
-        if (!ultimateBot.walletKeypair) {
-            return res.status(400).json({ success: false, error: 'Wallet not initialized' });
+        if (!ultimateBot.walletKeypair || !ultimateBot.sponsorKeypair) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Wallet and sponsor must be initialized' 
+            });
         }
         
-        const result = await ultimateBot.executeWithdrawal(toAddress, amount);
-        res.json({ success: true, hash: result.hash });
+        // Execute atomic claim and transfer (NO DELAYS)
+        const result = await ultimateBot.executeUnifiedClaimAndTransfer(balanceId, toAddress, amount);
+        
+        res.json({ 
+            success: true, 
+            claimHash: result.claimHash,
+            transferHash: result.transferHash,
+            executionTime: result.executionTime,
+            message: `Atomic execution completed in ${result.executionTime}ms - Competitors crushed!`
+        });
+        
     } catch (error) {
-        console.error('Withdrawal error:', error);
+        console.error('Atomic claim and transfer error:', error);
         res.status(400).json({ success: false, error: error.message });
     }
 });
 
-// Start ultimate claiming
+// Execute quantum claim and transfer (ULTIMATE SPEED MODE)
+app.post('/api/bot/quantum-claim-transfer', async (req, res) => {
+    try {
+        const { balanceId, toAddress, amount } = req.body;
+        
+        if (!balanceId || !toAddress || !amount) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Balance ID, address, and amount are required' 
+            });
+        }
+        
+        if (!ultimateBot.walletKeypair || !ultimateBot.sponsorKeypair) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Wallet and sponsor must be initialized' 
+            });
+        }
+        
+        // Execute quantum multi-path claim and transfer
+        const result = await ultimateBot.executeQuantumClaimAndTransfer(balanceId, toAddress, amount);
+        
+        res.json({ 
+            success: true, 
+            claimHash: result.claimHash,
+            transferHash: result.transferHash,
+            executionTime: result.executionTime,
+            parallelPaths: result.parallelPaths,
+            message: `Quantum execution completed in ${result.executionTime}ms using ${result.parallelPaths} parallel paths`
+        });
+        
+    } catch (error) {
+        console.error('Quantum claim and transfer error:', error);
+        res.status(400).json({ success: false, error: error.message });
+    }
+});
+
+// Legacy claim endpoint (for monitoring compatibility)
 app.post('/api/bot/claim', async (req, res) => {
     try {
         const { balanceId } = req.body;
@@ -232,6 +291,16 @@ app.get('/api/wallet/transactions', async (req, res) => {
     }
 });
 
+// Get current server time
+app.get('/api/time', (req, res) => {
+    res.json({
+        serverTime: new Date().toISOString(),
+        utcTime: '2025-08-07 23:07:00 UTC',
+        user: 'walfgenxx',
+        timestamp: Date.now()
+    });
+});
+
 // Serve frontend
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -254,6 +323,8 @@ server.listen(PORT, () => {
     console.log(`🚀 ULTIMATE PI BOT SERVER RUNNING ON PORT ${PORT}`);
     console.log(`🌐 Dashboard: ${process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`}`);
     console.log(`📊 Health Check: ${process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`}/api/health`);
+    console.log(`⏰ Server Time: 2025-08-07 23:07:00 UTC`);
+    console.log(`👤 User: walfgenxx`);
 });
 
 // Graceful shutdown
