@@ -1,38 +1,51 @@
-# Use official Bun image
-FROM oven/bun:latest
+# Node modules
+node_modules/
 
-# Set working directory
-WORKDIR /app
+# Environment files
+.env
+.env.local
+.env.*.local
 
-# Copy package files
-COPY package*.json ./
-COPY bun.lockb* ./
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Install dependencies
-RUN bun install --production
+# Build outputs
+dist/
+build/
+*.js
+!server.js
 
-# Copy all source files
-COPY . .
+# Git
+.git/
+.gitignore
 
-# Build TypeScript files
-RUN bun build ./server.ts --outdir=./dist
+# Documentation
+README.md
+*.md
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+# Test files
+*.test.ts
+*.spec.ts
 
-# Change ownership of app directory
-RUN chown -R nodejs:nodejs /app
+# Lock files (we'll generate fresh ones)
+package-lock.json
+yarn.lock
+bun.lockb
 
-# Switch to non-root user
-USER nodejs
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
-# Expose port (Render will auto-detect this)
-EXPOSE 3000
+# OS files
+.DS_Store
+Thumbs.db
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
-
-# Start the server
-CMD ["bun", "run", "dist/server.js"]
+# Temporary files
+tmp/
+temp/
