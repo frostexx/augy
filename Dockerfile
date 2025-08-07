@@ -1,27 +1,31 @@
-# Use the official Bun image as base
-FROM oven/bun:latest
+# Use the official Node.js image as base (more stable than Bun for production)
+FROM node:18-alpine
 
 # Set working directory
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
-COPY bun.lock ./
+
+# Install dependencies
+RUN npm install
 
 # Copy source code
 COPY . .
 
-# Install dependencies
-RUN bun install
-
-# Build TypeScript files if needed
-RUN bun build ./index.ts --outdir=./dist
+# Build TypeScript files
+RUN npm run build
 
 # Set environment variables
 ENV NODE_ENV=production
+ENV PORT=3000
 
-# Expose port if needed (adjust if your app uses a different port)
+# Expose port for web service
 EXPOSE 3000
 
+# Add healthcheck
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:3000/health || exit 1
+
 # Start the application
-CMD ["bun", "run", "index.ts"]
+CMD ["npm", "start"]
